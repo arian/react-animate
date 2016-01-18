@@ -1,6 +1,7 @@
 import raf from 'raf';
 import tween from 'tween-interpolate';
-import _ from 'lodash';
+import 'should';
+
 const __DEV__ = process.env.NODE_ENV === 'development';
 const __BROWSER__ = (typeof window === 'object');
 
@@ -34,7 +35,7 @@ function shouldEnableHA() {
 
 function enableHA(styles) {
   // for each 'transform' property, set/prepend 'translateZ(0)'
-  _.each(transformProperties, (property) => {
+  transformProperties.forEach((property) => {
     if(styles[property] === void 0) {
       styles[property] = [transformHA, transformHA];
     }
@@ -46,15 +47,15 @@ function enableHA(styles) {
 }
 
 const Animate = {
-  '@animations': Symbol('animations'),
+  '@animations': '__animations',
 
-  '@abortAnimation': Symbol('abortAnimation'),
+  '@abortAnimation': '__abortAnimation',
 
-  '@animate': Symbol('animate'),
+  '@animate': '__animate',
 
-  '@getAnimatedStyle': Symbol('getAnimatedStyle'),
+  '@getAnimatedStyle': '__getAnimatedStyle',
 
-  '@isAnimated': Symbol('isAnimated'),
+  '@isAnimated': '__isAnimated',
 
   animate(...args) {
     if(__DEV__) {
@@ -96,7 +97,7 @@ function animatedStyleStateKey(name) {
 Animate.extend = (Component) => class extends Component {
   constructor(props) {
     super(props);
-    if(!_.isObject(this.state)) {
+    if(typeof this.state === 'object') {
       this.state = {};
     }
     this[Animate['@animations']] = {};
@@ -107,7 +108,10 @@ Animate.extend = (Component) => class extends Component {
       super.componentWillUnmount();
     }
     if(this[Animate['@animations']] !== null) {
-      _.each(this[Animate['@animations']], (animation, name) => Animate.abortAnimation.call(this, name, animation));
+      Object.keys(this[Animate['@animations']], (name) => {
+        const animation = this[Animate['@animations']][name];
+        Animate.abortAnimation.call(this, name, animation);
+      });
     }
   }
 
@@ -164,21 +168,30 @@ Animate.extend = (Component) => class extends Component {
       Animate.abortAnimation.call(this, name);
     }
     // create the actual easing function using tween-interpolate (d3 smash)
-    const easingFn = _.isObject(easing) ? tween.ease.apply(tween, [easing.type, ...easing.arguments]) : tween.ease(easing);
+    const easingFn = (typeof easing === 'object') ? tween.ease.apply(tween, [easing.type, ...easing.arguments]) : tween.ease(easing);
     // reformat the input: [property]: [from, to]
     const styles = {};
     // unless told otherwise below, the value is assumed constant
-    _.each(fromStyle, (value, property) =>
-      styles[property] = [value, value]
-    );
+    Object.keys(fromStyle).forEach(property => {
+      const value = fromStyle[property];
+      styles[property] = [value, value];
+    });
     // if we dont have an initial value for each property, assume it is constant from the beginning
-    _.each(toStyle, (value, property) =>
-      styles[property] = styles[property] === void 0 ? [value, value] : [styles[property][0], value]
-    );
+    Object.keys(toStyle).forEach(property => {
+      const value = toStyle[property];
+      styles[property] = styles[property] === void 0 ? [value, value] : [styles[property][0], value];
+    });
     // get an interpolator for each property
-    const interpolators = _.mapValues(styles, ([from, to]) => tween.interpolate(from, to));
+    const interpolators = Object.keys(styles).reduce((_interpolators, key) => {
+      const [from, to] = styles[key];
+      _interpolators[key] = tween.interpolate(from, to);
+      return _interpolators;
+    }, {});
     // pre-compute the final style (ignore [from])
-    const finalStyle = _.mapValues(styles, ([, to]) => to);
+    const finalStyle = Object.keys(styles).reduce((_finalStyle, key) => {
+      _finalStyle[key] = styles[key][1];
+      return _finalStyle;
+    }, {});
 
     // do the hardware acceleration trick
     if(!disableMobileHA && shouldEnableHA()) {
@@ -203,7 +216,10 @@ Animate.extend = (Component) => class extends Component {
         return;
         // the animation is not over yet
       }
-      const currentStyle = _.mapValues(interpolators, (fn) => fn(easingFn(t)));
+      const currentStyle = Object.keys(interpolators).reduce((_currentStyle, key) => {
+        _currentStyle[key] = interpolators[key](easingFn(t));
+        return _currentStyle;
+      }, {});
       this.setState({ [stateKey]: currentStyle });
       onTick(currentStyle, t, easingFn(t));
       Object.assign(this[Animate['@animations']][name], { nextTick: raf(tick), t, currentStyle });

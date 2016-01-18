@@ -4,7 +4,7 @@
   "description": "",
   "license": "MIT",
   "author": "Elie Rotenberg <elie@rotenberg.io>",
-  "main": "src/index.jsx",
+  "main": "dist.index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/elierotenberg/react-animate.git"
@@ -13,18 +13,17 @@
     "url": "https://github.com/elierotenberg/react-animate/issues"
   },
   "scripts": {
-    "test": "gulp test"
+    "test": "gulp test",
+    "dist": "babel src/index.jsx > dist.index.js"
   },
   "homepage": "https://github.com/elierotenberg/react-animate",
   "dependencies": {
-    "bluebird": "^2.9.30",
-    "lodash": "^3.9.3",
     "raf": "^3.0.0",
-    "should": "^6.0.3",
-    "tween-interpolate": "^1.0.1"
+    "tween-interpolate": "^1.0.1",
+    "should": "^6.0.3"
   },
   "devDependencies": {
-    "babel": "^5.5.8",
+    "babel": "^5.8.34",
     "babel-eslint": "^3.1.15",
     "babel-runtime": "^5.5.8",
     "eslint": "^0.23.0",
