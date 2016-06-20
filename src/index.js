@@ -1,9 +1,10 @@
 import raf from 'raf';
+import {createClass, createElement} from 'react';
 import tween from 'tween-interpolate';
 import 'should';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
-const __BROWSER__ = (typeof window === 'object');
+const __BROWSER__ = typeof window === 'object';
 
 function isMobile(userAgent) {
   return (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i).test(userAgent);
@@ -22,11 +23,11 @@ const transformHA = 'translateZ(0)';
 // The trick will be enabled in mobile browsers which are not
 // Android Gingerbread.
 function shouldEnableHA() {
-  if(!__BROWSER__) {
+  if (!__BROWSER__) {
     return false;
   }
   const { userAgent } = navigator;
-  if(!userAgent) {
+  if (!userAgent) {
     return false;
   }
   // is mobile but not gingerbread
@@ -36,7 +37,7 @@ function shouldEnableHA() {
 function enableHA(styles) {
   // for each 'transform' property, set/prepend 'translateZ(0)'
   transformProperties.forEach((property) => {
-    if(styles[property] === void 0) {
+    if (styles[property] === void 0) {
       styles[property] = [transformHA, transformHA];
     }
     else {
@@ -46,115 +47,70 @@ function enableHA(styles) {
   });
 }
 
-const Animate = {
-  '@animations': '__animations',
-
-  '@abortAnimation': '__abortAnimation',
-
-  '@animate': '__animate',
-
-  '@getAnimatedStyle': '__getAnimatedStyle',
-
-  '@isAnimated': '__isAnimated',
-
-  animate(...args) {
-    if(__DEV__) {
-      this.should.not.be.exactly(Animate);
-    }
-    return this[Animate['@animate']](...args);
-  },
-
-  abortAnimation(...args) {
-    if(__DEV__) {
-      this.should.not.be.exactly(Animate);
-    }
-    return this[Animate['@abortAnimation']](...args);
-  },
-
-  getAnimatedStyle(...args) {
-    if(__DEV__) {
-      this.should.not.be.exactly(Animate);
-    }
-    return this[Animate['@getAnimatedStyle']](...args);
-  },
-
-  isAnimated(...args) {
-    if(__DEV__) {
-      this.should.not.be.exactly(Animate);
-    }
-    return this[Animate['@isAnimated']](...args);
-  },
-
+const AnimateProps = {
   DEFAULT_EASING: 'cubic-in-out',
-
-  extend: null,
 };
 
 function animatedStyleStateKey(name) {
   return `Animate@${name}`;
 }
 
-Animate.extend = (Component) => class extends Component {
-  constructor(props) {
-    super(props);
-    if(typeof this.state === 'object') {
-      this.state = {};
-    }
-    this[Animate['@animations']] = {};
-  }
+const Animate = (Component) => createClass({
+
+  getInitialState() {
+    this.__animations = {};
+    return {};
+  },
 
   componentWillUnmount() {
-    if(super.componentWillUnmount) {
-      super.componentWillUnmount();
-    }
-    if(this[Animate['@animations']] !== null) {
-      Object.keys(this[Animate['@animations']], (name) => {
-        const animation = this[Animate['@animations']][name];
+    if (this.__animations !== null) {
+      Object.keys(this.__animations, (name) => {
+        const animation = this.__animations[name];
         Animate.abortAnimation.call(this, name, animation);
       });
     }
-  }
+  },
 
-  [Animate['@getAnimatedStyle']](name) {
-    if(__DEV__) {
+  getAnimatedStyle(name) {
+    if (__DEV__) {
       name.should.be.a.String;
     }
     return this.state && this.state[animatedStyleStateKey(name)] || {};
-  }
+  },
 
-  [Animate['@isAnimated']](name) {
-    if(__DEV__) {
+  isAnimated(name) {
+    if (__DEV__) {
       name.should.be.a.String;
     }
-    return (this[Animate['@animations']][name] !== void 0);
-  }
+    return this.__animations[name] !== void 0;
+  },
 
-  [Animate['@abortAnimation']](name) {
-    if(__DEV__) {
+  abortAnimation(name) {
+    if (__DEV__) {
       name.should.be.a.String;
     }
-    if(this[Animate['@animations']][name] !== void 0) {
-      const { easingFn, onAbort, nextTick, t, currentStyle } = this[Animate['@animations']][name];
+    if (this.__animations[name] !== void 0) {
+      const { easingFn, onAbort, nextTick, t, currentStyle } = this.__animations[name];
       raf.cancel(nextTick);
       onAbort(currentStyle, t, easingFn(t));
       // unregister the animation
-      delete this[Animate['@animations']][name];
+      delete this.__animations[name];
       return true;
     }
     // silently fail but returns false
     return false;
-  }
+  },
 
-  [Animate['@animate']](name, fromStyle, toStyle, duration, opts = {}) {
+  animate(name, fromStyle, toStyle, duration, opts = {}) {
     const {
-      easing = Animate.DEFAULT_EASING,
+      easing = AnimateProps.DEFAULT_EASING,
       onTick = () => void 0,
       onAbort = () => void 0,
       onComplete = () => void 0,
       disableMobileHA = false,
     } = opts;
 
-    if(__DEV__) {
+    if (__DEV__) {
       name.should.be.a.String;
       fromStyle.should.be.an.Object;
       toStyle.should.be.an.Object;
@@ -164,11 +120,13 @@ Animate.extend = (Component) => class extends Component {
       onComplete.should.be.a.Function;
     }
     // if there is already an animation with this name, abort it
-    if(this[Animate['@animations']][name] !== void 0) {
+    if (this.__animations[name] !== void 0) {
       Animate.abortAnimation.call(this, name);
     }
     // create the actual easing function using tween-interpolate (d3 smash)
-    const easingFn = (typeof easing === 'object') ? tween.ease.apply(tween, [easing.type, ...easing.arguments]) : tween.ease(easing);
+    const easingFn = typeof easing === 'object' ?
+      tween.ease.apply(tween, [easing.type, ...easing.arguments]) :
+      tween.ease(easing);
     // reformat the input: [property]: [from, to]
     const styles = {};
     // unless told otherwise below, the value is assumed constant
@@ -194,7 +152,7 @@ Animate.extend = (Component) => class extends Component {
     }, {});
 
     // do the hardware acceleration trick
-    if(!disableMobileHA && shouldEnableHA()) {
+    if (!disableMobileHA && shouldEnableHA()) {
       enableHA(transformProperties, styles);
     }
 
@@ -207,12 +165,12 @@ Animate.extend = (Component) => class extends Component {
       // progress: starts at 0, ends at > 1
       const t = (now - start) / duration;
       // we are past the end
-      if(t > 1) {
+      if (t > 1) {
         this.setState({ [stateKey]: finalStyle });
         onTick(finalStyle, 1, easingFn(1));
         onComplete(finalStyle, t, easingFn(t));
         // unregister the animation
-        delete this[Animate['@animations']][name];
+        delete this.__animations[name];
         return;
         // the animation is not over yet
       }
@@ -222,11 +180,11 @@ Animate.extend = (Component) => class extends Component {
       }, {});
       this.setState({ [stateKey]: currentStyle });
       onTick(currentStyle, t, easingFn(t));
-      Object.assign(this[Animate['@animations']][name], { nextTick: raf(tick), t, currentStyle });
+      Object.assign(this.__animations[name], { nextTick: raf(tick), t, currentStyle });
     };
 
     // register the animation
-    this[Animate['@animations']][name] = {
+    this.__animations[name] = {
       easingFn,
       onAbort,
       nextTick: raf(tick),
@@ -234,7 +192,21 @@ Animate.extend = (Component) => class extends Component {
       currentStyle: fromStyle,
     };
     return this;
-  }
-};
+  },
+
+  render() {
+    const props = {
+      getAnimatedStyle: this.getAnimatedStyle,
+      isAnimated: this.isAnimated,
+      abortAnimation: this.abortAnimation,
+      animate: this.animate,
+    };
+    Object.keys(this.props, prop => {
+      props[prop] = this.props[prop];
+    });
+    return createElement(Component, props);
+  },
+
+});
 
 export default Animate;
