@@ -253,7 +253,7 @@ var Animate = function Animate(Component) {
         abortAnimation: this.abortAnimation,
         animate: this.animate
       };
-      Object.keys(this.props, function (prop) {
+      Object.keys(this.props).forEach(function (prop) {
         props[prop] = _this3.props[prop];
       });
       return (0, _react.createElement)(Component, props);
