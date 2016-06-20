@@ -201,7 +201,7 @@ const Animate = (Component) => createClass({
       abortAnimation: this.abortAnimation,
       animate: this.animate,
     };
-    Object.keys(this.props, prop => {
+    Object.keys(this.props).forEach(prop => {
       props[prop] = this.props[prop];
     });
     return createElement(Component, props);
