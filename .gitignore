@@ -3,4 +3,3 @@ tmp
 *.pid
 *.lock
 npm-debug.log
-dist.index.js
